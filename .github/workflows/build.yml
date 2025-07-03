@@ -3,7 +3,7 @@ on: [push, pull_request]
 jobs:
   ufbt-build-action:
     runs-on: ubuntu-latest
-    name: 'ufbt: Build for Momentum firmware'
+    name: 'ufbt: Build'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -11,7 +11,6 @@ jobs:
         uses: flipperdevices/flipperzero-ufbt-action@v0.1
         id: build-app
         with:
-          sdk-url: https://github.com/Next-Flip/Momentum-Firmware/releases/latest/download/flipper-z-f7-sdk.zip
           sdk-hw-target: f7
       - name: Upload app artifacts
         # Updated to v4 as v3 is deprecated
