@@ -21,10 +21,10 @@ jobs:
       - name: Install ufbt
         run: pip install ufbt
 
-      - name: Initialize ufbt
+      - name: Initialize ufbt (from root)
         run: ufbt init
 
-      - name: Build .fap
+      - name: Build FAP (from root)
         run: ufbt build
 
       - name: Upload .fap artifact
