@@ -25,3 +25,9 @@ If you want an icon for the application, place a 10x10 1-bit PNG named
 
 This is only a starting point for implementing full "Pokemon Go Plus"
 functionality.
+
+### Device Credentials
+
+The file `pgp_device.h` contains the MAC address, device key, and blob
+used when emulating a Pokemon Go Plus. Replace these constants with the
+values from your own hardware if needed.

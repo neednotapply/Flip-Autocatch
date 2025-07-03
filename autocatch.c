@@ -2,6 +2,7 @@
 #include <furi_hal_bt.h>
 #include <notification/notification_messages.h>
 #include <dialogs/dialogs.h>
+#include "pgp_device.h"
 
 /* optional image assets would be generated here */
 
@@ -11,6 +12,13 @@ int32_t autocatch_app(void* p) {
     // Acquire required services
     NotificationApp* notifications = furi_record_open(RECORD_NOTIFICATION);
     DialogsApp* dialogs = furi_record_open(RECORD_DIALOGS);
+
+    // Configure Bluetooth identity for Pokemon Go Plus emulation
+    // Momentum firmware provides functions to set the BLE MAC address and keys.
+    // These calls are no-ops on vanilla firmware but harmless.
+    furi_hal_bt_set_mac_address(PGP_MAC);
+    furi_hal_bt_set_device_key(PGP_DEVICE_KEY);
+    furi_hal_bt_set_blob(PGP_BLOB, sizeof(PGP_BLOB));
 
     // Prepare and show pairing dialog
     DialogMessage* message = dialog_message_alloc();
