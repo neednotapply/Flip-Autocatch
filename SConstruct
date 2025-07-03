@@ -1,20 +1,22 @@
 Import("env")
 
-# Optional Flipper libs (can be removed if not used in code)
+# Add required flipper modules
 env.modules.add(
     "lib/notification",
     "lib/dialogs",
 )
 
+# Define your FAP build
 env.Append(
     FAP={
         "name": "Autocatch",
-        "appid": "autocatch",         # Unique ID (no spaces)
-        "entry_point": "autocatch",   # Must match the function name in autocatch.c
+        "appid": "autocatch",
+        "entry_point": "autocatch_app",  # <- matches your actual function name
         "manifest": "application.fam",
     }
 )
 
+# Source files
 env.SDKSource(
     files=[
         "autocatch.c"
