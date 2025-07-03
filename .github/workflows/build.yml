@@ -14,7 +14,8 @@ jobs:
           sdk-url: https://github.com/Next-Flip/Momentum-Firmware/releases/latest/download/flipper-z-f7-sdk.zip
           sdk-hw-target: f7
       - name: Upload app artifacts
-        uses: actions/upload-artifact@v3
+        # Updated to v4 as v3 is deprecated
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ github.event.repository.name }}-${{ steps.build-app.outputs.suffix }}
           path: ${{ steps.build-app.outputs.fap-artifacts }}
