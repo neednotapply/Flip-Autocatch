@@ -3,7 +3,7 @@ on: [push, pull_request]
 jobs:
   ufbt-build-action:
     runs-on: ubuntu-latest
-    name: 'ufbt: Build'
+    name: 'ufbt: Build for Dev branch'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -11,10 +11,10 @@ jobs:
         uses: flipperdevices/flipperzero-ufbt-action@v0.1
         id: build-app
         with:
-          sdk-hw-target: f7
+          # Set to 'release' to build for latest published release version
+          sdk-channel: dev
       - name: Upload app artifacts
-        # Updated to v4 as v3 is deprecated
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ github.event.repository.name }}-${{ steps.build-app.outputs.suffix }}
           path: ${{ steps.build-app.outputs.fap-artifacts }}
