@@ -1,5 +1,14 @@
 #include <furi.h>
 #include <furi_hal_bt.h>
+
+#include <stdint.h>
+
+/* ---------- Momentum spoof helpers (header not in release SDK) ---------- */
+void furi_hal_bt_set_mac_address(const uint8_t mac[6]);
+void furi_hal_bt_set_device_key(const uint8_t key[16]);
+void furi_hal_bt_set_blob(const void* blob, size_t len);
+/* ----------------------------------------------------------------------- */
+
 #include <notification/notification_messages.h>
 #include <dialogs/dialogs.h>
 #include "pgp_device.h"
