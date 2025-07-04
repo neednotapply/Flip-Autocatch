@@ -1,0 +1,5 @@
+      - name: Use Momentum firmware SDK
+        run: |
+          mkdir -p ~/.ufbt
+          echo '[firmware]' > ~/.ufbt/settings.toml
+          echo 'channel = "https://update.flipperzero.one/momentum/directory.json"' >> ~/.ufbt/settings.toml
