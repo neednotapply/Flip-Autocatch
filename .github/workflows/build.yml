@@ -8,36 +8,30 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04  # GitHub’s Momentum-ready runner image
+    runs-on: ubuntu-24.04
+
     steps:
-      # 1. Check out your repo
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2. Set up Python (needed for ufbt)
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
 
-      # 3. Install (or upgrade) ufbt
       - name: Install ufbt
         run: pip install --upgrade ufbt
 
-      # 4. Download the Momentum SDK and select the release channel
-      #    The --index-url flag tells ufbt to use Momentum’s firmware index.
+      # Download Momentum SDK
       - name: Fetch Momentum SDK
         run: |
           ufbt update \
             --index-url https://up.momentum-fw.dev/firmware/directory.json \
             --channel release
-          ufbt info            # optional: shows SDK version and target
 
-      # 5. Build your application
       - name: Build FAP
         run: ufbt build
 
-      # 6. Package results (dist/ is ufbt’s default output dir)
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
