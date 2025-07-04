@@ -24,12 +24,12 @@ jobs:
 
       - name: Use Momentum firmware SDK
         run: |
-          mkdir -p /home/runner/.ufbt
-          echo '[firmware]' > /home/runner/.ufbt/settings.toml
-          echo 'channel = "https://update.flipperzero.one/momentum/directory.json"' >> /home/runner/.ufbt/settings.toml
+          mkdir -p "$HOME/.ufbt"
+          echo '[firmware]' > "$HOME/.ufbt/settings.toml"
+          echo 'channel = "https://update.flipperzero.one/momentum/directory.json"' >> "$HOME/.ufbt/settings.toml"
 
-      - name: Show SDK config (for debugging)
-        run: cat /home/runner/.ufbt/settings.toml
+      - name: Show SDK config (debug)
+        run: cat "$HOME/.ufbt/settings.toml"
 
       - name: Build FAP
         run: ufbt build
