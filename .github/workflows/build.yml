@@ -1,41 +1,26 @@
-name: Build FAP (Momentum)
+# .github/workflows/build.yml  (excerpt)
+steps:
+  - uses: actions/checkout@v3
 
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  - uses: actions/setup-python@v4
+    with:
+      python-version: '3.11'
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+  - name: Install uFBT
+    run: pip install --upgrade ufbt
 
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+  - name: Switch runner to Momentum SDK
+    run: |
+      # cache lives in $HOME/.ufbt
+      ufbt update \
+        --index-url https://up.momentum-fw.dev/firmware/directory.json \
+        --channel    release
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
+  - name: Build FAP
+    run: ufbt build
 
-      - name: Install ufbt
-        run: pip install ufbt
-
-      - name: Use Momentum firmware SDK
-        run: |
-          mkdir -p "$HOME/.ufbt"
-          echo '[firmware]' > "$HOME/.ufbt/settings.toml"
-          echo 'channel = "https://update.flipperzero.one/momentum/directory.json"' >> "$HOME/.ufbt/settings.toml"
-
-      - name: Show SDK config (debug)
-        run: cat "$HOME/.ufbt/settings.toml"
-
-      - name: Build FAP
-        run: ufbt build
-
-      - name: Upload .fap artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: flipper-app-momentum
-          path: build/f7-app/*.fap
+  - name: Upload artifact
+    uses: actions/upload-artifact@v4
+    with:
+      name: flip-autocatch-momentum
+      path: dist/*.fap
