@@ -22,7 +22,10 @@ jobs:
         run: pip install ufbt
 
       - name: Use Momentum firmware SDK
-        run: ufbt set channel momentum
+        run: |
+          mkdir -p ~/.ufbt
+          echo '[firmware]' > ~/.ufbt/settings.toml
+          echo 'channel = "https://update.flipperzero.one/momentum/directory.json"' >> ~/.ufbt/settings.toml
 
       - name: Build for Momentum
         run: ufbt build
