@@ -27,7 +27,7 @@ jobs:
         run: |
           ufbt update \
             --index-url https://up.momentum-fw.dev/firmware/directory.json \
-            --channel release
+            --channel dev
 
       - name: Build FAP
         run: ufbt build
