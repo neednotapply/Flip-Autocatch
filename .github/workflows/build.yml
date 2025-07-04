@@ -1,26 +1,45 @@
-# .github/workflows/build.yml  (excerpt)
-steps:
-  - uses: actions/checkout@v3
+name: Build Momentum FAP
 
-  - uses: actions/setup-python@v4
-    with:
-      python-version: '3.11'
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
-  - name: Install uFBT
-    run: pip install --upgrade ufbt
+jobs:
+  build:
+    runs-on: ubuntu-24.04  # GitHub’s Momentum-ready runner image
+    steps:
+      # 1. Check out your repo
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-  - name: Switch runner to Momentum SDK
-    run: |
-      # cache lives in $HOME/.ufbt
-      ufbt update \
-        --index-url https://up.momentum-fw.dev/firmware/directory.json \
-        --channel    release
+      # 2. Set up Python (needed for ufbt)
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
 
-  - name: Build FAP
-    run: ufbt build
+      # 3. Install (or upgrade) ufbt
+      - name: Install ufbt
+        run: pip install --upgrade ufbt
 
-  - name: Upload artifact
-    uses: actions/upload-artifact@v4
-    with:
-      name: flip-autocatch-momentum
-      path: dist/*.fap
+      # 4. Download the Momentum SDK and select the release channel
+      #    The --index-url flag tells ufbt to use Momentum’s firmware index.
+      - name: Fetch Momentum SDK
+        run: |
+          ufbt update \
+            --index-url https://up.momentum-fw.dev/firmware/directory.json \
+            --channel release
+          ufbt info            # optional: shows SDK version and target
+
+      # 5. Build your application
+      - name: Build FAP
+        run: ufbt build
+
+      # 6. Package results (dist/ is ufbt’s default output dir)
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flip-autocatch-momentum
+          path: dist/*.fap
