@@ -1,4 +1,4 @@
-name: Build FAP
+name: Build FAP (Momentum)
 
 on:
   push:
@@ -21,11 +21,14 @@ jobs:
       - name: Install ufbt
         run: pip install ufbt
 
-      - name: Build FAP
+      - name: Use Momentum firmware SDK
+        run: ufbt set channel momentum
+
+      - name: Build for Momentum
         run: ufbt build
 
       - name: Upload .fap artifact
         uses: actions/upload-artifact@v4
         with:
-          name: flipper-app
+          name: flipper-app-momentum
           path: build/f7-app/*.fap
