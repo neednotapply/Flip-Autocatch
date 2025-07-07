@@ -96,7 +96,7 @@ int32_t autocatch_app(void* p) {
         dialog_message_set_header(pair_msg, "Pairing", 64, 0, AlignCenter, AlignTop);
         dialog_message_set_text(
             pair_msg,
-            "Open PoGo >\nAccessory Devices\nand select Autocatch",
+            "Open PoGo >\nAccessory Devices\nand select Pokemon GO Plus",
             64,
             20,
             AlignCenter,
