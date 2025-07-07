@@ -6,43 +6,13 @@
 
 /*
  * Momentum SDK provides helpers to spoof the BLE identity for Pokemon Go
- * Plus emulation. These functions are part of Momentum firmware but not
- * available in the open source Flipper SDK, so we provide weak stubs to
- * allow building the application without Momentum. When running on
- * Momentum firmware the real implementations will be used instead.
+ * Plus emulation. These functions are part of Momentum firmware and are not
+ * present in the official Flipper SDK. Building without Momentum will now
+ * stop with a clear error instead of linking weak stubs.
  */
 
 #ifndef MOMENTUM_SDK
-/*
- * Build without Momentum: define weak stubs so linking succeeds. When running
- * on Momentum firmware these will be ignored in favour of real implementations.
- */
-__attribute__((weak)) void furi_hal_bt_set_mac_address(const uint8_t mac[6]) {
-    UNUSED(mac);
-}
-
-__attribute__((weak)) void furi_hal_bt_set_device_key(const uint8_t key[16]) {
-    UNUSED(key);
-}
-
-#include <stddef.h>
-__attribute__((weak)) void furi_hal_bt_set_blob(const void* blob, size_t len) {
-    UNUSED(blob);
-    UNUSED(len);
-}
-
-// The Momentum SDK exposes helpers for Pokemon Go Plus emulation.
-// When building without it we provide weak stubs so the code still compiles.
-__attribute__((weak)) bool pgp_is_connected(void) {
-    return false;
-}
-
-__attribute__((weak)) bool pgp_press_requested(void) {
-    return false;
-}
-
-__attribute__((weak)) void pgp_send_button_press(void) {
-}
+#error "Momentum SDK not detected. Run 'ufbt update --index-url https://up.momentum-fw.dev/firmware/directory.json --channel dev' and rebuild."
 #endif
 /* --------------------------------------------------------------------- */
 
