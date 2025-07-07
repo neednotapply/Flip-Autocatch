@@ -19,6 +19,7 @@ env.Append(
 # Source files
 env.SDKSource(
     files=[
-        "autocatch.c"
+        "autocatch.c",
+        "pgp.c",
     ]
 )
