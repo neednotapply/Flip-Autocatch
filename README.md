@@ -29,10 +29,10 @@ python -m ufbt build
 Windows `cmd.exe` does not support the backslash (`\`) line continuation
 used above, so run the commands on a single line as shown.
 
-If you build against the official Flipper firmware, the Bluetooth spoofing
-helpers used by Momentum won't be present and the application will fail to
-compile. Make sure you installed the Momentum firmware index using
-`ufbt update` before building.
+Building against the official Flipper firmware will now trigger a compile-
+time error. The application depends on the extra Bluetooth helpers from the
+Momentum SDK and will not compile without them. Make sure the Momentum
+firmware index is installed with `ufbt update` before running `ufbt build`.
 
 By default the compiled `.fap` file is written under the uFBT state
 directory, usually `~/.ufbt/build` unless you created a local environment

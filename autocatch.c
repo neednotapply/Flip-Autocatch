@@ -4,14 +4,13 @@
 #include <stdint.h>
 
 /* ---------------------------------------------------------------------
- * If Momentum helpers are unavailable we provide harmless fall‑backs so
- * the code still links on stock firmware.  No compile‑time warning is
- * emitted to keep -Werror happy.
+ * The application relies on additional Bluetooth helpers provided by the
+ * Momentum SDK.  Building against the stock Flipper firmware would leave
+ * these symbols undefined and the spoofing logic would be ineffective.
+ * Fail the build early if the Momentum headers are not in use.
  * ------------------------------------------------------------------- */
 #ifndef MOMENTUM_SDK
-static inline void furi_hal_bt_set_mac_address(const uint8_t*) {}
-static inline void furi_hal_bt_set_device_key(const uint8_t*) {}
-static inline void furi_hal_bt_set_blob(const uint8_t*, size_t) {}
+#error "Momentum SDK required.  Run 'ufbt update --index-url https://up.momentum-fw.dev/firmware/directory.json --channel dev' first"
 #endif
 
 #include <notification/notification_messages.h>
