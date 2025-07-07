@@ -2,6 +2,7 @@
 #include <furi_hal_bt.h>
 
 #include <stdint.h>
+#include <stdbool.h>
 
 /*
  * Momentum SDK provides helpers to spoof the BLE identity for Pokemon Go
@@ -24,9 +25,23 @@ __attribute__((weak)) void furi_hal_bt_set_device_key(const uint8_t key[16]) {
     UNUSED(key);
 }
 
+#include <stddef.h>
 __attribute__((weak)) void furi_hal_bt_set_blob(const void* blob, size_t len) {
     UNUSED(blob);
     UNUSED(len);
+}
+
+// The Momentum SDK exposes helpers for Pokemon Go Plus emulation.
+// When building without it we provide weak stubs so the code still compiles.
+__attribute__((weak)) bool pgp_is_connected(void) {
+    return false;
+}
+
+__attribute__((weak)) bool pgp_press_requested(void) {
+    return false;
+}
+
+__attribute__((weak)) void pgp_send_button_press(void) {
 }
 #endif
 /* --------------------------------------------------------------------- */
@@ -36,6 +51,17 @@ __attribute__((weak)) void furi_hal_bt_set_blob(const void* blob, size_t len) {
 #include "pgp_device.h"
 
 /* optional image assets would be generated here */
+
+static void autocatch_loop(NotificationApp* notifications) {
+    while(pgp_is_connected()) {
+        if(pgp_press_requested()) {
+            // automatically respond to catch events
+            pgp_send_button_press();
+            notification_message_block(notifications, &sequence_blink_once);
+        }
+        furi_delay_ms(200);
+    }
+}
 
 int32_t autocatch_app(void* p) {
     UNUSED(p);
@@ -64,6 +90,27 @@ int32_t autocatch_app(void* p) {
         furi_hal_bt_start_radio_stack();
         furi_hal_bt_start_advertising();
         notification_message_block(notifications, &sequence_success);
+
+        // Show message while advertising so the user can pair
+        DialogMessage* pair_msg = dialog_message_alloc();
+        dialog_message_set_header(pair_msg, "Pairing", 64, 0, AlignCenter, AlignTop);
+        dialog_message_set_text(
+            pair_msg,
+            "Open PoGo >\nAccessory Devices\nand select Autocatch",
+            64,
+            20,
+            AlignCenter,
+            AlignTop);
+        dialog_message_set_buttons(pair_msg, "Back", NULL, NULL);
+        dialog_message_show(dialogs, pair_msg);
+        dialog_message_free(pair_msg);
+
+        // Stop advertising once user leaves the dialog
+        furi_hal_bt_stop_advertising();
+
+        // Continue running while connected to Pokemon Go and press the
+        // virtual button whenever the game requests it
+        autocatch_loop(notifications);
     }
 
     // Release services
