@@ -30,11 +30,9 @@ Windows `cmd.exe` does not support the backslash (`\`) line continuation
 used above, so run the commands on a single line as shown.
 
 If you build against the official Flipper firmware, the Bluetooth spoofing
-helpers used by Momentum won't be present. The source provides weak stub
-implementations so the app still compiles, but real functionality requires
-building with the Momentum SDK.
-
-If you encounter linking errors about functions like furi_hal_bt_set_blob, verify the Momentum firmware index was installed using `ufbt update`.
+helpers used by Momentum won't be present and the application will fail to
+compile. Make sure you installed the Momentum firmware index using
+`ufbt update` before building.
 
 By default the compiled `.fap` file is written under the uFBT state
 directory, usually `~/.ufbt/build` unless you created a local environment
