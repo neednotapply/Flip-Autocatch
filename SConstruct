@@ -6,12 +6,12 @@ env.modules.add(
     "lib/dialogs",
 )
 
-# Define your FAP build
+# FAP descriptor
 env.Append(
     FAP={
         "name": "Autocatch",
         "appid": "autocatch",
-        "entry_point": "autocatch_app",  # <- matches your actual function name
+        "entry_point": "autocatch_app",
         "manifest": "application.fam",
     }
 )
