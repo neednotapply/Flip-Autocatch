@@ -1,12 +1,11 @@
+
 Import("env")
 
-# Add required flipper modules
 env.modules.add(
     "lib/notification",
-    "lib/dialogs",
+    "lib/ble",          # ← exposes ble_glue headers for external apps
 )
 
-# FAP descriptor
 env.Append(
     FAP={
         "name": "Autocatch",
@@ -16,10 +15,4 @@ env.Append(
     }
 )
 
-# Source files
-env.SDKSource(
-    files=[
-        "autocatch.c",
-        "pgp.c",
-    ]
-)
+env.SDKSource(files=["autocatch.c", "pgp.c"])
