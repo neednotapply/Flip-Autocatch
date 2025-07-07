@@ -4,12 +4,24 @@ A "Pokemon Go Autocatcher" for the Flipper Zero.
 ## Building
 
 This project uses the [uFBT](https://github.com/flipperdevices/ufbt) toolchain.
-To build the application locally:
+The app relies on the Momentum SDK, which extends the official Flipper
+firmware with additional Bluetooth APIs. Before building you need to update
+ufbt to use the Momentum firmware index. To build the application locally:
 
 ```bash
 pip install ufbt
+ufbt update \
+  --index-url https://up.momentum-fw.dev/firmware/directory.json \
+  --channel dev
 ufbt build
 ```
+
+If you build against the official Flipper firmware, the Bluetooth spoofing
+helpers used by Momentum won't be present. The source provides weak stub
+implementations so the app still compiles, but real functionality requires
+building with the Momentum SDK.
+
+If you encounter linking errors about functions like furi_hal_bt_set_blob, verify the Momentum firmware index was installed using `ufbt update`.
 
 The resulting `.fap` file will be placed in the build directory.
 

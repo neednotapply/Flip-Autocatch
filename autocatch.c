@@ -3,11 +3,33 @@
 
 #include <stdint.h>
 
-/* ---------- Momentum spoof helpers (header not in release SDK) ---------- */
-void furi_hal_bt_set_mac_address(const uint8_t mac[6]);
-void furi_hal_bt_set_device_key(const uint8_t key[16]);
-void furi_hal_bt_set_blob(const void* blob, size_t len);
-/* ----------------------------------------------------------------------- */
+/*
+ * Momentum SDK provides helpers to spoof the BLE identity for Pokemon Go
+ * Plus emulation. These functions are part of Momentum firmware but not
+ * available in the open source Flipper SDK, so we provide weak stubs to
+ * allow building the application without Momentum. When running on
+ * Momentum firmware the real implementations will be used instead.
+ */
+
+#ifndef MOMENTUM_SDK
+/*
+ * Build without Momentum: define weak stubs so linking succeeds. When running
+ * on Momentum firmware these will be ignored in favour of real implementations.
+ */
+__attribute__((weak)) void furi_hal_bt_set_mac_address(const uint8_t mac[6]) {
+    UNUSED(mac);
+}
+
+__attribute__((weak)) void furi_hal_bt_set_device_key(const uint8_t key[16]) {
+    UNUSED(key);
+}
+
+__attribute__((weak)) void furi_hal_bt_set_blob(const void* blob, size_t len) {
+    UNUSED(blob);
+    UNUSED(len);
+}
+#endif
+/* --------------------------------------------------------------------- */
 
 #include <notification/notification_messages.h>
 #include <dialogs/dialogs.h>
