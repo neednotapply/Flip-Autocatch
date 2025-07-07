@@ -77,7 +77,7 @@ values from your own hardware if needed.
 1. Launch **Autocatch** on your Flipper and press the `Pair` button.
 2. A "Pairing" screen will remain open while the device advertises over BLE.
 3. On your phone open *Pokemon Go* ➡ *Accessory Devices* and select
-   "Autocatch" from the list.
+   "Pokemon GO Plus" from the list.
 4. After the connection succeeds press `Back` on the Flipper to exit the
    pairing screen.
 5. While connected, the app automatically taps the virtual catch button
