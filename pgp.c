@@ -8,9 +8,9 @@
 
 #include <furi.h>
 #include <furi_hal_bt.h>
-#include <ble_glue/furi_ble/profile_interface.h>
-#include <ble_glue/gap.h>
-#include <ble_glue/gatt.h>
+#include <furi_ble/profile_interface.h>
+#include <gap.h>
+#include <furi_ble/gatt.h>
 #include <string.h>
 
 #ifndef ARRAY_SIZE
