@@ -57,7 +57,7 @@ static void autocatch_loop(NotificationApp* notifications) {
         if(pgp_press_requested()) {
             // automatically respond to catch events
             pgp_send_button_press();
-            notification_message_block(notifications, &sequence_blink_once);
+            notification_message_block(notifications, &sequence_blink_blue_100);
         }
         furi_delay_ms(200);
     }
