@@ -1,16 +1,11 @@
-
-/**
- * BLE layer for Pokémon Go Plus spoofing – Momentum firmware.
- * Relies on official ble_glue headers now exposed via env.modules.add("lib/ble").
- */
 #include "pgp.h"
 #include "pgp_device.h"
 
 #include <furi.h>
 #include <furi_hal_bt.h>
 #include <furi_ble/profile_interface.h>
-#include <gap.h>
 #include <furi_ble/gatt.h>
+#include <gap.h>
 #include <string.h>
 
 #ifndef ARRAY_SIZE
@@ -27,95 +22,104 @@ static const uint8_t PGP_BTN_UUID[16] = {
     0x00,0x10,0x00,0x00,0x33,0xFD,0x00,0x00
 };
 
-/* Forward declarations */
-static void pgp_button_write_cb(FuriHalBleGattChar*, const uint8_t*, uint16_t, void*);
-static bool  pgp_gap_event_cb(GapEvent, void*);
+/* ---- New BLE structures -------------------------------------------------- */
 
-/* Character template list (one characteristic) */
-static FuriHalBleCharTemplate pgp_char_templates[] = {
-    {
-        .uuid128 = {0}, /* patched at runtime */
-        .props   = BLE_GATT_CHAR_PROP_WRITE_NO_RESP,
-        .max_len = 1,
-        .handler = pgp_button_write_cb,
-    },
+/* Characteristic descriptor */
+static BleGattCharacteristicDescriptorParams pgp_char_descr = {
+    .uuid_type = UUID_TYPE_128,
+    .max_length = 1,
+    .security_permissions = ATTR_PERMISSION_NONE,
+    .access_permissions = ATTR_ACCESS_WRITE_WITHOUT_RESPONSE,
+    .gatt_evt_mask = GATT_NOTIFY_ATTRIBUTE_WRITE,
+    .is_variable = CHAR_VALUE_LEN_CONSTANT,
+};
+
+/* Characteristic parameters */
+static BleGattCharacteristicParams pgp_char_params = {
+    .name = "button",
+    .descriptor_params = &pgp_char_descr,
+    .data = {.fixed = {NULL, 0}},
+    .uuid_type = UUID_TYPE_128,
+    .char_properties = CHAR_PROP_WRITE_WITHOUT_RESP | CHAR_PROP_NOTIFY,
+    .security_permissions = ATTR_PERMISSION_NONE,
+    .gatt_evt_mask = GATT_NOTIFY_ATTRIBUTE_WRITE,
+    .data_prop_type = FlipperGattCharacteristicDataFixed,
+    .is_variable = CHAR_VALUE_LEN_CONSTANT,
 };
 
 /* Preferred connection parameters */
-static const FuriHalBlePreferredConn pgp_pref_conn = {
-    .min_interval = 24,
-    .max_interval = 40,
-    .latency      = 0,
-    .sup_timeout  = 200,
+static const GapConnectionParamsRequest pgp_pref_conn = {
+    .conn_int_min = 24,
+    .conn_int_max = 40,
+    .slave_latency = 0,
+    .supervisor_timeout = 200,
 };
 
-/* Profile template – MAC injected in pgp_init() */
-static FuriHalBleProfileTemplate pgp_profile_template = {
-    .name               = "PGP",
-    .chars              = pgp_char_templates,
-    .chars_num          = ARRAY_SIZE(pgp_char_templates),
-    .preferred_conn     = &pgp_pref_conn,
-    .profile_addr_type  = BLE_GAP_ADDR_TYPE_RANDOM_STATIC,
-    .profile_static_addr = {0},
-};
+/* BLE profile instance */
+typedef struct {
+    FuriHalBleProfileBase base;
+    uint16_t svc_handle;
+    BleGattCharacteristicInstance button_char;
+} PgpProfile;
 
-/* Pointer to runtime GATT char for notify */
-static FuriHalBleGattChar* pgp_button_char = NULL;
+static PgpProfile pgp_profile;
+
+/* ------------------------------------------------------------------------- */
+static bool pgp_gap_event_cb(GapEvent ev, void* ctx) {
+    UNUSED(ctx);
+    pgp_connected = (ev.type == GapEventTypeConnected);
+    return true;
+}
+
+static void pgp_get_gap_config(GapConfig* cfg, FuriHalBleProfileParams params) {
+    UNUSED(params);
+    memset(cfg, 0, sizeof(GapConfig));
+    memcpy(cfg->mac_address, PGP_MAC, 6);
+    memcpy(cfg->adv_name, "PGP", 3);
+    cfg->bonding_mode = true;
+    cfg->conn_param = pgp_pref_conn;
+}
+
+static FuriHalBleProfileBase* pgp_start(FuriHalBleProfileParams params) {
+    UNUSED(params);
+    Service_UUID_t svc_uuid = {.Service_UUID_16 = 0xFD00};
+    memcpy(pgp_char_descr.uuid.Char_UUID_128, PGP_BTN_UUID, 16);
+    memcpy(pgp_char_params.uuid.Char_UUID_128, PGP_BTN_UUID, 16);
+
+    if(!ble_gatt_service_add(UUID_TYPE_16, &svc_uuid, PRIMARY_SERVICE, 2, &pgp_profile.svc_handle)) {
+        return NULL;
+    }
+
+    ble_gatt_characteristic_init(pgp_profile.svc_handle, &pgp_char_params, &pgp_profile.button_char);
+    return &pgp_profile.base;
+}
+
+static void pgp_stop(FuriHalBleProfileBase* base) {
+    (void)base;
+    ble_gatt_characteristic_delete(pgp_profile.svc_handle, &pgp_profile.button_char);
+    ble_gatt_service_delete(pgp_profile.svc_handle);
+}
+
+static const FuriHalBleProfileTemplate pgp_profile_template = {
+    .start = pgp_start,
+    .stop = pgp_stop,
+    .get_gap_config = pgp_get_gap_config,
+};
 
 /* ------------------------------------------------------------------ */
-/* Helper accessors                                                   */
-bool pgp_is_connected(void)    { return pgp_connected; }
+bool pgp_is_connected(void) { return pgp_connected; }
 bool pgp_press_requested(void) { return press_requested; }
 
 void pgp_send_button_press(void) {
     static const uint8_t pkt = 0x03; /* press + release */
-    if (pgp_button_char) {
-        furi_hal_ble_char_notify(pgp_button_char, &pkt, 1);
-    }
+    ble_gatt_characteristic_update(pgp_profile.svc_handle, &pgp_profile.button_char, &pkt);
     press_requested = false;
-}
-
-/* Write callback – phone writes 0x01 to request a catch */
-static void pgp_button_write_cb(FuriHalBleGattChar* ch,
-                                const uint8_t* data,
-                                uint16_t len,
-                                void* ctx) {
-    UNUSED(ch); UNUSED(ctx);
-    if (len && data[0] == 0x01) press_requested = true;
-}
-
-/* GAP link status */
-static bool pgp_gap_event_cb(GapEvent ev, void* ctx) {
-    UNUSED(ctx);
-    pgp_connected = (ev == GapConnected);
-    return true;
 }
 
 /* ------------------------------------------------------------------ */
 bool pgp_init(void) {
-    /* Patch MAC and UUID into template */
-    memcpy(pgp_profile_template.profile_static_addr, PGP_MAC, 6);
-    memcpy(pgp_char_templates[0].uuid128, PGP_BTN_UUID, 16);
-
-    /* Inject saved bonding blob (optional) */
-    if (sizeof(PGP_BLOB)) {
-        uint8_t* kv; uint16_t kv_len;
-        furi_hal_bt_get_key_storage_buff(&kv, &kv_len);
-        if (sizeof(PGP_BLOB) <= kv_len) {
-            furi_hal_bt_nvm_sram_sem_acquire();
-            memcpy(kv, PGP_BLOB, sizeof(PGP_BLOB));
-            furi_hal_bt_nvm_sram_sem_release();
-        }
-    }
-
-    /* Start radio + BLE profile */
-    if (!furi_hal_bt_start_radio_stack()) return false;
-
-    FuriHalBleProfileBase* base =
-        furi_hal_bt_start_app(&pgp_profile_template, NULL, pgp_gap_event_cb, NULL);
-    if (!base) return false;
-
-    pgp_button_char = &base->chars[0];
+    if(!furi_hal_bt_start_radio_stack()) return false;
+    if(!furi_hal_bt_start_app(&pgp_profile_template, NULL, pgp_gap_event_cb, NULL)) return false;
     furi_hal_bt_start_advertising();
     return true;
 }

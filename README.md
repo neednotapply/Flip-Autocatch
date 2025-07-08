@@ -34,6 +34,10 @@ time error. The application depends on the extra Bluetooth helpers from the
 Momentum SDK and will not compile without them. Make sure the Momentum
 firmware index is installed with `ufbt update` before running `ufbt build`.
 
+If you continue to see errors about missing BLE types after updating, remove
+the uFBT state directory (`~/.ufbt` on most systems) and run `ufbt update`
+again. This forces the toolchain to fetch the Momentum SDK files afresh.
+
 By default the compiled `.fap` file is written under the uFBT state
 directory, usually `~/.ufbt/build` unless you created a local environment
 with `ufbt dotenv_create` (then it will be `.ufbt/build` in your project).
