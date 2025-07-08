@@ -67,6 +67,11 @@ static PgpProfile pgp_profile;
 /* ------------------------------------------------------------------------- */
 static bool pgp_gap_event_cb(GapEvent ev, void* ctx) {
     UNUSED(ctx);
+    if(ev.type == GapEventTypeConnected) {
+        FURI_LOG_I("Autocatch", "Connected");
+    } else if(ev.type == GapEventTypeDisconnected) {
+        FURI_LOG_I("Autocatch", "Disconnected");
+    }
     pgp_connected = (ev.type == GapEventTypeConnected);
     return true;
 }
@@ -75,7 +80,12 @@ static void pgp_get_gap_config(GapConfig* cfg, FuriHalBleProfileParams params) {
     UNUSED(params);
     memset(cfg, 0, sizeof(GapConfig));
     memcpy(cfg->mac_address, PGP_MAC, 6);
-    memcpy(cfg->adv_name, "PGP", 3);
+    /*
+     * Advertise exactly as an official Pokemon GO Plus.
+     * Ensure the name is NUL terminated to avoid memory
+     * corruption when the Bluetooth stack reads the string.
+     */
+    snprintf(cfg->adv_name, sizeof(cfg->adv_name), "Pokemon GO Plus");
     cfg->bonding_mode = true;
     cfg->conn_param = pgp_pref_conn;
 }
@@ -118,8 +128,16 @@ void pgp_send_button_press(void) {
 
 /* ------------------------------------------------------------------ */
 bool pgp_init(void) {
-    if(!furi_hal_bt_start_radio_stack()) return false;
-    if(!furi_hal_bt_start_app(&pgp_profile_template, NULL, pgp_gap_event_cb, NULL)) return false;
+    FURI_LOG_I("Autocatch", "Starting BLE stack");
+    if(!furi_hal_bt_start_radio_stack()) {
+        FURI_LOG_E("Autocatch", "Radio stack init failed");
+        return false;
+    }
+    if(!furi_hal_bt_start_app(&pgp_profile_template, NULL, pgp_gap_event_cb, NULL)) {
+        FURI_LOG_E("Autocatch", "BLE profile start failed");
+        return false;
+    }
     furi_hal_bt_start_advertising();
+    FURI_LOG_I("Autocatch", "Advertising started");
     return true;
 }

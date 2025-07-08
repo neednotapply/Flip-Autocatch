@@ -83,4 +83,17 @@ values from your own hardware if needed.
 4. After the connection succeeds press `Back` on the Flipper to exit the
    pairing screen.
 5. While connected, the app automatically taps the virtual catch button
-   whenever Pokemon Go prompts for input.
+    whenever Pokemon Go prompts for input.
+
+### Troubleshooting
+
+If the application exits immediately after you press **Pair**, check the serial
+log for errors. Connect the Flipper over USB and run:
+
+```bash
+ufbt -v launch
+```
+
+The log output may indicate missing Momentum SDK features or invalid device
+credentials. Ensure you've updated the toolchain with the Momentum firmware
+index and that `pgp_device.h` contains valid keys from your own hardware.
