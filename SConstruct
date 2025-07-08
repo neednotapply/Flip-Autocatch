@@ -3,6 +3,7 @@ Import("env")
 
 env.modules.add(
     "lib/notification",
+    "lib/dialogs",
     "lib/ble",          # ← exposes ble_glue headers for external apps
 )
 
