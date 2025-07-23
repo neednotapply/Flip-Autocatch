@@ -105,6 +105,10 @@ static bool pgp_gap_event_cb(GapEvent ev, void* ctx) {
 static void pgp_get_gap_config(GapConfig* cfg, FuriHalBleProfileParams params) {
     UNUSED(params);
     memset(cfg, 0, sizeof(GapConfig));
+    cfg->adv_service.UUID_Type = UUID_TYPE_16;
+    cfg->adv_service.Service_UUID_16 = 0xFD00;
+    memcpy(cfg->mfg_data, pgp_challenge, 20);
+    cfg->mfg_data_len = 20;
     memcpy(cfg->mac_address, PGP_MAC, 6);
     /*
      * Advertise exactly as an official Pokemon GO Plus.
@@ -113,6 +117,7 @@ static void pgp_get_gap_config(GapConfig* cfg, FuriHalBleProfileParams params) {
      */
     snprintf(cfg->adv_name, sizeof(cfg->adv_name), "Pokemon GO Plus");
     cfg->bonding_mode = true;
+    cfg->pairing_method = GapPairingPinCodeShow;
     cfg->conn_param = pgp_pref_conn;
 }
 
