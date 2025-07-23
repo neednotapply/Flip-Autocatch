@@ -10,10 +10,14 @@
 #include "pgp.h"
 
 static void run_loop(NotificationApp* n) {
-    while (pgp_is_connected()) {
-        if (pgp_press_requested()) {
-            pgp_send_button_press();
-            notification_message_block(n, &sequence_blink_blue_100);
+    while(true) {
+        if(pgp_is_connected()) {
+            if(pgp_press_requested()) {
+                pgp_send_button_press();
+                notification_message_block(n, &sequence_blink_blue_100);
+            }
+        } else {
+            pgp_restart_advertising();
         }
         furi_delay_ms(200);
     }
@@ -51,7 +55,6 @@ int32_t autocatch_app(void* ctx) {
             dialog_message_show(d, pair);
             dialog_message_free(pair);
 
-            furi_hal_bt_stop_advertising();
             run_loop(n);
         }
     }

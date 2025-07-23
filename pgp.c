@@ -7,6 +7,8 @@
 #include <furi_ble/gatt.h>
 #include <gap.h>
 #include <string.h>
+#include <furi_hal_random.h>
+#include "aes.h"
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
@@ -15,6 +17,30 @@
 /* Runtime flags */
 static volatile bool pgp_connected = false;
 static volatile bool press_requested = false;
+
+static uint8_t pgp_challenge[378];
+
+void pgp_generate_challenge(uint8_t* out) {
+    uint8_t main_data[80] = {0};
+    uint8_t nonce[16];
+    struct AES_ctx ctx;
+
+    /* Random challenge, session key and nonce */
+    furi_hal_random_fill_buf(main_data, sizeof(main_data));
+    furi_hal_random_fill_buf(nonce, sizeof(nonce));
+
+    /* Encrypt 80-byte payload using device key in CTR mode */
+    AES_init_ctx_iv(&ctx, PGP_DEVICE_KEY, nonce);
+    memcpy(out, main_data, sizeof(main_data));
+    AES_CTR_xcrypt_buffer(&ctx, out, sizeof(main_data));
+
+    /* Append nonce and MAC */
+    memcpy(out + 80, nonce, sizeof(nonce));
+    memcpy(out + 96, PGP_MAC, sizeof(PGP_MAC));
+
+    /* Copy blob */
+    memcpy(out + 102, PGP_BLOB, sizeof(PGP_BLOB));
+}
 
 /* UUID for the PGP button characteristic */
 static const uint8_t PGP_BTN_UUID[16] = {
@@ -126,6 +152,12 @@ void pgp_send_button_press(void) {
     press_requested = false;
 }
 
+void pgp_restart_advertising(void) {
+    if(!pgp_connected) {
+        furi_hal_bt_start_advertising();
+    }
+}
+
 /* ------------------------------------------------------------------ */
 bool pgp_init(void) {
     FURI_LOG_I("Autocatch", "Starting BLE stack");
@@ -137,6 +169,7 @@ bool pgp_init(void) {
         FURI_LOG_E("Autocatch", "BLE profile start failed");
         return false;
     }
+    pgp_generate_challenge(pgp_challenge);
     furi_hal_bt_start_advertising();
     FURI_LOG_I("Autocatch", "Advertising started");
     return true;

@@ -74,6 +74,10 @@ The file `pgp_device.h` contains the MAC address, device key, and blob
 used when emulating a Pokemon Go Plus. Replace these constants with the
 values from your own hardware if needed.
 
+On startup the app uses the device key and blob to generate the initial
+Bluetooth pairing challenge as described in the reverse engineering POC
+at <https://tinyhack.com/2018/11/21/reverse-engineering-pokemon-go-plus/>.
+
 ### Pairing
 
 1. Launch **Autocatch** on your Flipper and press the `Pair` button.
@@ -97,3 +101,17 @@ ufbt -v launch
 The log output may indicate missing Momentum SDK features or invalid device
 credentials. Ensure you've updated the toolchain with the Momentum firmware
 index and that `pgp_device.h` contains valid keys from your own hardware.
+
+### Reference Implementation
+
+If you need a more complete Bluetooth example, check out the
+[FindMy Flipper](https://github.com/MatthewKuKanich/FindMyFlipper) project.
+It demonstrates how to integrate BLE functionality into a standalone app and
+has been used across several custom firmwares. Reviewing its source can help
+with troubleshooting pairing issues or extending this application.
+
+### Continuous Reconnection
+
+The app now keeps advertising even after a disconnect, allowing your phone to
+reconnect automatically without restarting the Flipper. This behavior was
+inspired by the reconnection logic found in *FindMy Flipper*.
