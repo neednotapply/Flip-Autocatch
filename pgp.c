@@ -115,7 +115,8 @@ static void pgp_get_gap_config(GapConfig* cfg, FuriHalBleProfileParams params) {
      * Ensure the name is NUL terminated to avoid memory
      * corruption when the Bluetooth stack reads the string.
      */
-    snprintf(cfg->adv_name, sizeof(cfg->adv_name), "Pokemon GO Plus");
+    /* Use the same advertising name as a real Pokemon GO Plus */
+    snprintf(cfg->adv_name, sizeof(cfg->adv_name), "%s", PGP_ADV_NAME);
     cfg->bonding_mode = true;
     cfg->pairing_method = GapPairingPinCodeShow;
     cfg->conn_param = pgp_pref_conn;

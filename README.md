@@ -74,6 +74,11 @@ The file `pgp_device.h` contains the MAC address, device key, and blob
 used when emulating a Pokemon Go Plus. Replace these constants with the
 values from your own hardware if needed.
 
+The same header also defines `PGP_ADV_NAME`, which sets the Bluetooth
+advertising name to "Pokemon GO Plus" so your phone recognizes the device
+during pairing. The name is fixed at build time and cannot be changed by
+the user.
+
 On startup the app uses the device key and blob to generate the initial
 Bluetooth pairing challenge as described in the reverse engineering POC
 at <https://tinyhack.com/2018/11/21/reverse-engineering-pokemon-go-plus/>.

@@ -5,6 +5,10 @@
 
 static const uint8_t PGP_MAC[6] = {0x98, 0xB6, 0xE9, 0x12, 0x32, 0xFC};
 
+/* BLE advertising name used when emulating a Pokemon GO Plus.
+   This string is compiled into the app and is not user-configurable. */
+static const char PGP_ADV_NAME[] = "Pokemon GO Plus";
+
 static const uint8_t PGP_DEVICE_KEY[16] = {
     0x41, 0x4A, 0x63, 0xFA, 0x33, 0xF2, 0xC5, 0xD4,
     0x79, 0x4B, 0x25, 0x16, 0x23, 0x09, 0xAB, 0x2A};
