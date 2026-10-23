@@ -1,17 +1,17 @@
-# For details & more options, see documentation/AppManifests.md in firmware repo
-
 App(
-    appid="autocatch",  # Must be unique
-    name="App autocatch",  # Displayed in menus
+    appid="autocatch",
+    name="PoGo Autocatch",
     apptype=FlipperAppType.EXTERNAL,
     entry_point="autocatch_app",
-    stack_size=2 * 1024,
-    fap_category="Examples",
-    # Optional values
-    # fap_version="0.1",
-    # fap_icon="autocatch.png",  # 10x10 1-bit PNG - provide your own icon
-    # fap_description="A simple app",
-    # fap_author="J. Doe",
-    # fap_weburl="https://github.com/user/autocatch",
-    fap_icon_assets="images",  # Image assets to compile for this application
+    requires=["gui", "bt", "storage", "notification"],
+    stack_size=4 * 1024,
+    # Only AES-128 ECB is needed from aes.c
+    cdefines=["CBC=0", "CTR=0"],
+    sources=["*.c", "!tests"],
+    fap_category="Bluetooth",
+    fap_version="0.2",
+    fap_icon="autocatch.png",
+    fap_description="Pokemon GO Plus emulator that catches Pokemon and spins Pokestops for you",
+    fap_author="neednotapply",
+    fap_weburl="https://github.com/neednotapply/Flip-Autocatch",
 )

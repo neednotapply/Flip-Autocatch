@@ -6,3 +6,9 @@ dist/*
 .env
 .ufbt
 build.log
+
+# Device secrets: keep them on the SD card, never in git
+pgp_device.txt
+pgp_device.h
+
+tests/test_pgp
