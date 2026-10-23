@@ -20,8 +20,11 @@ What exists now:
 - LED pattern parsing (Pokemon / Pokestop / caught / fled / bag full / ...) and
   pgpemu's randomized auto-press.
 - Secrets loaded from the SD card instead of being compiled in.
-- A clean build against official firmware 1.5.1 (API 88.2) and Momentum (API 87.1),
-  with every imported symbol checked against each firmware's API table.
+- A clean build against official firmware 1.5.1 (API 88.2), Momentum (API 87.1)
+  and Unleashed (dev, Oct 2026), with every imported symbol checked against each
+  firmware's API table.
+- GitHub Actions building `.fap` artifacts for Momentum and Unleashed (release and
+  dev) and running the host tests on every push.
 
 Nothing has run on a Flipper yet. Milestone 1 below is the next step.
 
@@ -119,9 +122,7 @@ Goal: the phone pairs and the handshake reaches *Connected*.
 - Save the auto catch / auto spin settings (Flipper Format in `apps_data`).
 - Several secret files with a picker (pgpemu supports multiple PGPs).
 - Optional vibration on catch, plus session statistics.
-- CI: build with
-  [ufbt-action](https://github.com/flipperdevices/flipperzero-ufbt-action) against
-  official release/dev and Momentum, and run `make -C tests`.
+- Publish CI `.fap` files to GitHub releases on version tags.
 
 ### M4: Remove the workarounds upstream
 

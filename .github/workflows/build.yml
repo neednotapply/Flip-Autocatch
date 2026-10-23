@@ -1,0 +1,57 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Host tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run protocol tests
+        run: make -C tests
+
+  build:
+    name: ${{ matrix.firmware }} ${{ matrix.channel }}
+    runs-on: ubuntu-latest
+    # Dev SDKs change without notice; report them without failing the run
+    continue-on-error: ${{ matrix.channel == 'dev' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        firmware: [Momentum, Unleashed]
+        channel: [release, dev]
+        include:
+          - firmware: Momentum
+            slug: momentum
+            index-url: https://up.momentum-fw.dev/firmware/directory.json
+          - firmware: Unleashed
+            slug: unleashed
+            index-url: https://up.unleashedflip.com/directory.json
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build with ufbt
+        id: build
+        uses: flipperdevices/flipperzero-ufbt-action@v0.1
+        with:
+          sdk-index-url: ${{ matrix.index-url }}
+          sdk-channel: ${{ matrix.channel }}
+
+      - name: Upload app
+        uses: actions/upload-artifact@v6
+        with:
+          name: autocatch-${{ matrix.slug }}-${{ matrix.channel }}-${{ steps.build.outputs.suffix }}
+          path: ${{ steps.build.outputs.fap-artifacts }}
+          if-no-files-found: error

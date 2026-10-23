@@ -9,7 +9,7 @@ to the Flipper's BLE stack. Like pgpemu, it needs the secrets (MAC address, devi
 key and blob) dumped from **your own** Pokemon GO Plus. Without them the phone will
 not accept the device.
 
-> **Status:** builds against the official firmware (1.5.1) and Momentum, and the
+> **Status:** builds against the official firmware (1.5.1), Momentum and Unleashed, and the
 > protocol code is unit tested against pgpemu. **It has not been tested on
 > hardware yet.** See [docs/PLAN.md](docs/PLAN.md) for the bring-up checklist and
 > known risks.
@@ -28,12 +28,23 @@ ufbt                   # builds dist/autocatch.fap
 ufbt launch            # build, install and start on a connected Flipper
 ```
 
-Momentum is not required anymore, but works too:
+For Momentum or Unleashed, point ufbt at their SDK index first:
 
 ```bash
+# Momentum
 ufbt update --index-url=https://up.momentum-fw.dev/firmware/directory.json --channel=release
+# Unleashed
+ufbt update --index-url=https://up.unleashedflip.com/directory.json --channel=release
 ufbt
 ```
+
+A `.fap` is built for the firmware you run, so the API version has to match. Use
+`--channel=dev` if you run a dev build.
+
+GitHub Actions (`.github/workflows/build.yml`) builds the app for Momentum and
+Unleashed (release and dev channels) on every push, and runs the host tests. Each
+run's **Artifacts** section has a ready `.fap` per firmware. Dev-channel failures
+are reported but do not fail the run.
 
 On Windows use `python -m ufbt ...` if `ufbt` is not on your `PATH`.
 
