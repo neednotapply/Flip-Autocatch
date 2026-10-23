@@ -19,6 +19,10 @@ not accept the device.
 
 ## Building
 
+Prebuilt apps for Momentum and Unleashed are attached to the GitHub
+[releases](https://github.com/neednotapply/Flip-Autocatch/releases). To build
+yourself:
+
 Install [uFBT](https://github.com/flipperdevices/flipperzero-ufbt) and build:
 
 ```bash
@@ -44,7 +48,9 @@ A `.fap` is built for the firmware you run, so the API version has to match. Use
 GitHub Actions (`.github/workflows/build.yml`) builds the app for Momentum and
 Unleashed (release and dev channels) on every push, and runs the host tests. Each
 run's **Artifacts** section has a ready `.fap` per firmware. Dev-channel failures
-are reported but do not fail the run.
+are reported but do not fail the run. Pushing a tag like `v0.2` or `v0.2-beta.1`
+(it must match `fap_version` in `application.fam`) also publishes a GitHub release
+with every build attached; tags with a `-suffix` become prereleases.
 
 On Windows use `python -m ufbt ...` if `ufbt` is not on your `PATH`.
 

@@ -24,7 +24,7 @@ What exists now:
   and Unleashed (dev, Oct 2026), with every imported symbol checked against each
   firmware's API table.
 - GitHub Actions building `.fap` artifacts for Momentum and Unleashed (release and
-  dev) and running the host tests on every push.
+  dev) and running the host tests on every push; version tags publish a release.
 
 Nothing has run on a Flipper yet. Milestone 1 below is the next step.
 
@@ -122,7 +122,6 @@ Goal: the phone pairs and the handshake reaches *Connected*.
 - Save the auto catch / auto spin settings (Flipper Format in `apps_data`).
 - Several secret files with a picker (pgpemu supports multiple PGPs).
 - Optional vibration on catch, plus session statistics.
-- Publish CI `.fap` files to GitHub releases on version tags.
 
 ### M4: Remove the workarounds upstream
 

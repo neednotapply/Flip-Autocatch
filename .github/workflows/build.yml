@@ -55,3 +55,62 @@ jobs:
           name: autocatch-${{ matrix.slug }}-${{ matrix.channel }}-${{ steps.build.outputs.suffix }}
           path: ${{ steps.build.outputs.fap-artifacts }}
           if-no-files-found: error
+
+  release:
+    name: Publish release
+    # Pushing a tag like v0.2 or v0.2-beta.1 publishes the built apps
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check tag matches fap_version
+        run: |
+          fap_version=$(sed -n 's/.*fap_version="\([^"]*\)".*/\1/p' application.fam)
+          tag_version=${GITHUB_REF_NAME#v}
+          tag_version=${tag_version%%-*}
+          if [ "$fap_version" != "$tag_version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match fap_version $fap_version in application.fam"
+            exit 1
+          fi
+
+      - name: Download apps
+        uses: actions/download-artifact@v6
+        with:
+          pattern: autocatch-*
+          path: artifacts
+
+      - name: Name apps after their firmware
+        run: |
+          mkdir release
+          for dir in artifacts/*/; do
+            cp "$dir/autocatch.fap" "release/$(basename "$dir").fap"
+          done
+          ls -l release
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "Untested on hardware so far. Follow the bring-up checklist in docs/PLAN.md and send the logs."
+            echo
+            echo "Pick the file for the firmware and channel installed on your Flipper; the API version in the name has to match."
+            echo
+            for fap in release/*.fap; do
+              echo "- \`$(basename "$fap")\`"
+            done
+            echo
+            echo "Install: copy the file to \`/ext/apps/Bluetooth/\` and your secrets file to \`/ext/apps_data/autocatch/pgp_device.txt\` (see README)."
+          } > notes.md
+          prerelease=""
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            prerelease="--prerelease"
+          fi
+          gh release create "$GITHUB_REF_NAME" release/*.fap \
+            --verify-tag $prerelease \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file notes.md
