@@ -48,9 +48,12 @@ A `.fap` is built for the firmware you run, so the API version has to match. Use
 GitHub Actions (`.github/workflows/build.yml`) builds the app for Momentum and
 Unleashed (release and dev channels) on every push, and runs the host tests. Each
 run's **Artifacts** section has a ready `.fap` per firmware. Dev-channel failures
-are reported but do not fail the run. Pushing a tag like `v0.2` or `v0.2-beta.1`
-(it must match `fap_version` in `application.fam`) also publishes a GitHub release
-with every build attached; tags with a `-suffix` become prereleases.
+are reported but do not fail the run.
+
+To publish a release with every build attached, push a tag like `v0.2` or
+`v0.2-beta.1`, or run the **Build** workflow by hand (*Actions > Build > Run
+workflow*) with the tag in the `release` field. The tag must match `fap_version`
+in `application.fam`; tags with a `-suffix` become prereleases.
 
 On Windows use `python -m ufbt ...` if `ufbt` is not on your `PATH`.
 
