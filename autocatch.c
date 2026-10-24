@@ -13,7 +13,11 @@
 #include <bt/bt_service/bt.h>
 #include <gui/gui.h>
 #include <gui/elements.h>
+#include <gui/view_dispatcher.h>
+#include <gui/modules/variable_item_list.h>
 #include <notification/notification_messages.h>
+
+#include "autocatch_icons.h"
 
 #define TAG "Autocatch"
 
@@ -23,10 +27,13 @@
 #define AUTOCATCH_PRESS_DELAY_MIN_MS    1000
 #define AUTOCATCH_PRESS_DELAY_RANGE_MS  1500
 #define AUTOCATCH_EVENT_QUEUE_SIZE      16
-#define AUTOCATCH_LOOP_TIMEOUT_MS       100
+
+// Keypad lock as in Sub-GHz Read: Back three times within a second unlocks
+#define AUTOCATCH_UNLOCK_PRESSES  3
+#define AUTOCATCH_LOCK_MESSAGE_MS 1000
+#define AUTOCATCH_UNLOCKED_MS     650
 
 typedef enum {
-    AutocatchEventTypeInput,
     AutocatchEventTypeBtStatus,
     AutocatchEventTypeGatt,
 } AutocatchEventType;
@@ -34,17 +41,39 @@ typedef enum {
 typedef struct {
     AutocatchEventType type;
     union {
-        InputEvent input;
         BtStatus bt_status;
         PgpGattEvent gatt;
     };
 } AutocatchEvent;
 
+typedef enum {
+    AutocatchViewMain,
+    AutocatchViewConfig,
+} AutocatchView;
+
+typedef enum {
+    AutocatchConfigCatch,
+    AutocatchConfigSpin,
+    AutocatchConfigLock,
+} AutocatchConfigItem;
+
+typedef enum {
+    AutocatchCustomEventLock,
+} AutocatchCustomEvent;
+
+static const char* const autocatch_switch_text[] = {"OFF", "ON"};
+
 typedef struct {
     Gui* gui;
-    ViewPort* view_port;
+    ViewDispatcher* view_dispatcher;
+    View* main_view;
+    VariableItemList* config;
     NotificationApp* notifications;
     FuriMessageQueue* event_queue;
+    FuriEventLoopTimer* press_timer;
+    FuriEventLoopTimer* lock_timer;
+    // Everything runs on the view dispatcher's thread except drawing, so the
+    // mutex only keeps the draw callback from seeing half updated state
     FuriMutex* mutex;
 
     Bt* bt;
@@ -59,8 +88,10 @@ typedef struct {
     bool handshake_started;
     bool autocatch;
     bool autospin;
-    bool press_pending;
-    uint32_t press_at;
+
+    bool locked;
+    bool unlock_hint;
+    uint8_t unlock_presses;
 
     PgpLedEvent last_event;
     uint32_t seen;
@@ -98,8 +129,42 @@ static const char* autocatch_status_text(AutocatchApp* app) {
     return "Bluetooth off";
 }
 
-static void autocatch_draw_callback(Canvas* canvas, void* context) {
-    AutocatchApp* app = context;
+static const char* autocatch_mode_text(const AutocatchApp* app) {
+    if(app->autocatch && app->autospin) {
+        return "Catch+Spin";
+    }
+    if(app->autocatch) {
+        return "Catch only";
+    }
+    return app->autospin ? "Spin only" : "Auto off";
+}
+
+static void autocatch_draw_bottom_bar(Canvas* canvas, const AutocatchApp* app) {
+    // OK presses the button by hand, so it gets no label
+    if(!app->locked) {
+        elements_button_left(canvas, "Config");
+    } else if(app->unlock_presses >= AUTOCATCH_UNLOCK_PRESSES) {
+        canvas_draw_icon(canvas, 0, 54, &I_unlock_7x8);
+        canvas_draw_str(canvas, 10, 61, "Unlocked");
+    } else {
+        canvas_draw_icon(canvas, 0, 54, &I_lock_7x8);
+        canvas_draw_str(canvas, 10, 61, "Locked");
+    }
+    canvas_draw_str_aligned(canvas, 128, 61, AlignRight, AlignBottom, autocatch_mode_text(app));
+}
+
+static void autocatch_draw_unlock_hint(Canvas* canvas) {
+    // Leaves the bottom bar visible
+    elements_bold_rounded_frame(canvas, 14, 5, 99, 45);
+    canvas_draw_str_aligned(canvas, 64, 25, AlignCenter, AlignBottom, "To unlock press:");
+    canvas_draw_icon(canvas, 44, 31, &I_back_10x8);
+    canvas_draw_icon(canvas, 59, 31, &I_back_10x8);
+    canvas_draw_icon(canvas, 74, 31, &I_back_10x8);
+}
+
+/* The model only holds the app pointer */
+static void autocatch_draw_callback(Canvas* canvas, void* model) {
+    AutocatchApp* app = *(AutocatchApp**)model;
     furi_check(furi_mutex_acquire(app->mutex, FuriWaitForever) == FuriStatusOk);
 
     canvas_clear(canvas);
@@ -129,23 +194,21 @@ static void autocatch_draw_callback(Canvas* canvas, void* context) {
         canvas_draw_str(canvas, 0, 40, furi_string_get_cstr(line));
         furi_string_printf(line, "Spins %lu  Presses %lu", app->spins, app->presses);
         canvas_draw_str(canvas, 0, 49, furi_string_get_cstr(line));
-
-        // OK presses the button by hand; three button labels don't fit
-        furi_string_printf(line, "Catch:%s", app->autocatch ? "on" : "off");
-        elements_button_left(canvas, furi_string_get_cstr(line));
-        furi_string_printf(line, "Spin:%s", app->autospin ? "on" : "off");
-        elements_button_right(canvas, furi_string_get_cstr(line));
-
         furi_string_free(line);
+
+        autocatch_draw_bottom_bar(canvas, app);
+        if(app->unlock_hint) {
+            autocatch_draw_unlock_hint(canvas);
+        }
     }
 
     furi_mutex_release(app->mutex);
 }
 
-static void autocatch_input_callback(InputEvent* input_event, void* context) {
-    AutocatchApp* app = context;
-    AutocatchEvent event = {.type = AutocatchEventTypeInput, .input = *input_event};
-    furi_message_queue_put(app->event_queue, &event, FuriWaitForever);
+static void autocatch_redraw(AutocatchApp* app) {
+    // The model never changes; committing it just redraws the view
+    view_get_model(app->main_view);
+    view_commit_model(app->main_view, true);
 }
 
 static void autocatch_bt_status_callback(BtStatus status, void* context) {
@@ -229,8 +292,7 @@ static void autocatch_handle_led(AutocatchApp* app, const uint8_t* data, size_t 
         uint32_t delay_ms = AUTOCATCH_PRESS_DELAY_MIN_MS +
                             furi_hal_random_get() % (AUTOCATCH_PRESS_DELAY_RANGE_MS + 1);
         if(delay_ms < pattern.duration_ms) {
-            app->press_pending = true;
-            app->press_at = furi_get_tick() + furi_ms_to_ticks(delay_ms);
+            furi_event_loop_timer_start(app->press_timer, furi_ms_to_ticks(delay_ms));
         }
     }
 }
@@ -261,28 +323,156 @@ static void autocatch_handle_gatt(AutocatchApp* app, const PgpGattEvent* event) 
     }
 }
 
-static bool autocatch_handle_input(AutocatchApp* app, const InputEvent* input) {
-    if(input->type != InputTypeShort) {
-        return true;
-    }
-    switch(input->key) {
-    case InputKeyBack:
-        return false;
-    case InputKeyLeft:
-        app->autocatch = !app->autocatch;
-        break;
-    case InputKeyRight:
-        app->autospin = !app->autospin;
-        break;
-    case InputKeyOk:
-        if(app->profile && pgp_handshake_is_done(&app->handshake)) {
-            autocatch_press_button(app);
+static void autocatch_event_queue_callback(FuriEventLoopObject* object, void* context) {
+    AutocatchApp* app = context;
+    AutocatchEvent event;
+    furi_check(furi_message_queue_get(object, &event, 0) == FuriStatusOk);
+
+    furi_check(furi_mutex_acquire(app->mutex, FuriWaitForever) == FuriStatusOk);
+    switch(event.type) {
+    case AutocatchEventTypeBtStatus:
+        app->bt_status = event.bt_status;
+        if(event.bt_status != BtStatusConnected) {
+            pgp_handshake_reset(&app->handshake);
+            app->handshake_started = false;
+            furi_event_loop_timer_stop(app->press_timer);
         }
         break;
-    default:
+    case AutocatchEventTypeGatt:
+        autocatch_handle_gatt(app, &event.gatt);
         break;
     }
+    furi_mutex_release(app->mutex);
+    autocatch_redraw(app);
+}
+
+static void autocatch_press_timer_callback(void* context) {
+    AutocatchApp* app = context;
+    furi_check(furi_mutex_acquire(app->mutex, FuriWaitForever) == FuriStatusOk);
+    autocatch_press_button(app);
+    furi_mutex_release(app->mutex);
+    autocatch_redraw(app);
+}
+
+/* Ends the lock message or unlock hint, or finishes unlocking */
+static void autocatch_lock_timer_callback(void* context) {
+    AutocatchApp* app = context;
+    furi_check(furi_mutex_acquire(app->mutex, FuriWaitForever) == FuriStatusOk);
+    app->unlock_hint = false;
+    if(app->unlock_presses >= AUTOCATCH_UNLOCK_PRESSES) {
+        app->locked = false;
+    } else {
+        // As in Sub-GHz the screen goes dark; any key lights it up again
+        notification_message(app->notifications, &sequence_display_backlight_off);
+    }
+    app->unlock_presses = 0;
+    furi_mutex_release(app->mutex);
+    autocatch_redraw(app);
+}
+
+/* Like Sub-GHz: any key shows how to unlock, Back three times unlocks */
+static void autocatch_handle_locked_input(AutocatchApp* app, const InputEvent* input) {
+    if(app->unlock_presses == 0) {
+        furi_event_loop_timer_start(app->lock_timer, furi_ms_to_ticks(AUTOCATCH_LOCK_MESSAGE_MS));
+    }
+    if(input->key == InputKeyBack && input->type == InputTypeShort &&
+       app->unlock_presses < AUTOCATCH_UNLOCK_PRESSES) {
+        app->unlock_presses++;
+    }
+    app->unlock_hint = app->unlock_presses < AUTOCATCH_UNLOCK_PRESSES;
+    if(!app->unlock_hint) {
+        // Stay locked while "Unlocked" shows, so more Back presses don't exit
+        furi_event_loop_timer_start(app->lock_timer, furi_ms_to_ticks(AUTOCATCH_UNLOCKED_MS));
+    }
+}
+
+static bool autocatch_input_callback(InputEvent* input, void* context) {
+    AutocatchApp* app = context;
+
+    if(app->locked) {
+        furi_check(furi_mutex_acquire(app->mutex, FuriWaitForever) == FuriStatusOk);
+        autocatch_handle_locked_input(app, input);
+        furi_mutex_release(app->mutex);
+    } else if(input->type == InputTypeShort) {
+        switch(input->key) {
+        case InputKeyBack:
+            view_dispatcher_stop(app->view_dispatcher);
+            break;
+        case InputKeyLeft:
+            if(app->secrets_status == PgpSecretsStatusOk) {
+                view_dispatcher_switch_to_view(app->view_dispatcher, AutocatchViewConfig);
+            }
+            break;
+        case InputKeyOk:
+            furi_check(furi_mutex_acquire(app->mutex, FuriWaitForever) == FuriStatusOk);
+            if(app->profile && pgp_handshake_is_done(&app->handshake)) {
+                autocatch_press_button(app);
+            }
+            furi_mutex_release(app->mutex);
+            break;
+        default:
+            break;
+        }
+    }
+    autocatch_redraw(app);
     return true;
+}
+
+static void autocatch_config_set_switch(VariableItem* item, bool* value) {
+    AutocatchApp* app = variable_item_get_context(item);
+    uint8_t index = variable_item_get_current_value_index(item);
+    variable_item_set_current_value_text(item, autocatch_switch_text[index]);
+    furi_check(furi_mutex_acquire(app->mutex, FuriWaitForever) == FuriStatusOk);
+    *value = index;
+    furi_mutex_release(app->mutex);
+}
+
+static void autocatch_config_catch_callback(VariableItem* item) {
+    AutocatchApp* app = variable_item_get_context(item);
+    autocatch_config_set_switch(item, &app->autocatch);
+}
+
+static void autocatch_config_spin_callback(VariableItem* item) {
+    AutocatchApp* app = variable_item_get_context(item);
+    autocatch_config_set_switch(item, &app->autospin);
+}
+
+/* Runs with the list's model locked, so leave the view switch for later */
+static void autocatch_config_enter_callback(void* context, uint32_t index) {
+    AutocatchApp* app = context;
+    if(index == AutocatchConfigLock) {
+        view_dispatcher_send_custom_event(app->view_dispatcher, AutocatchCustomEventLock);
+    }
+}
+
+static uint32_t autocatch_config_previous_callback(void* context) {
+    UNUSED(context);
+    return AutocatchViewMain;
+}
+
+static bool autocatch_custom_event_callback(void* context, uint32_t event) {
+    AutocatchApp* app = context;
+    if(event != AutocatchCustomEventLock) {
+        return false;
+    }
+    furi_check(furi_mutex_acquire(app->mutex, FuriWaitForever) == FuriStatusOk);
+    app->locked = true;
+    app->unlock_hint = false;
+    app->unlock_presses = 0;
+    furi_mutex_release(app->mutex);
+    furi_event_loop_timer_start(app->lock_timer, furi_ms_to_ticks(AUTOCATCH_LOCK_MESSAGE_MS));
+    view_dispatcher_switch_to_view(app->view_dispatcher, AutocatchViewMain);
+    return true;
+}
+
+static void autocatch_config_add_switch(
+    AutocatchApp* app,
+    const char* label,
+    bool value,
+    VariableItemChangeCallback callback) {
+    VariableItem* item = variable_item_list_add(app->config, label, 2, callback, app);
+    variable_item_set_current_value_index(item, value);
+    variable_item_set_current_value_text(item, autocatch_switch_text[value]);
 }
 
 static void autocatch_bt_start(AutocatchApp* app) {
@@ -324,18 +514,58 @@ static AutocatchApp* autocatch_alloc(void) {
     app->mutex = furi_mutex_alloc(FuriMutexTypeNormal);
     app->notifications = furi_record_open(RECORD_NOTIFICATION);
 
-    app->view_port = view_port_alloc();
-    view_port_draw_callback_set(app->view_port, autocatch_draw_callback, app);
-    view_port_input_callback_set(app->view_port, autocatch_input_callback, app);
+    app->view_dispatcher = view_dispatcher_alloc();
+    view_dispatcher_set_event_callback_context(app->view_dispatcher, app);
+    view_dispatcher_set_custom_event_callback(
+        app->view_dispatcher, autocatch_custom_event_callback);
+
+    // Bluetooth events and timers run on the view dispatcher's thread too
+    FuriEventLoop* event_loop = view_dispatcher_get_event_loop(app->view_dispatcher);
+    furi_event_loop_subscribe_message_queue(
+        event_loop, app->event_queue, FuriEventLoopEventIn, autocatch_event_queue_callback, app);
+    app->press_timer = furi_event_loop_timer_alloc(
+        event_loop, autocatch_press_timer_callback, FuriEventLoopTimerTypeOnce, app);
+    app->lock_timer = furi_event_loop_timer_alloc(
+        event_loop, autocatch_lock_timer_callback, FuriEventLoopTimerTypeOnce, app);
+
+    app->main_view = view_alloc();
+    view_allocate_model(app->main_view, ViewModelTypeLockFree, sizeof(AutocatchApp*));
+    AutocatchApp** model = view_get_model(app->main_view);
+    *model = app;
+    view_commit_model(app->main_view, false);
+    view_set_context(app->main_view, app);
+    view_set_draw_callback(app->main_view, autocatch_draw_callback);
+    view_set_input_callback(app->main_view, autocatch_input_callback);
+    view_dispatcher_add_view(app->view_dispatcher, AutocatchViewMain, app->main_view);
+
+    app->config = variable_item_list_alloc();
+    autocatch_config_add_switch(
+        app, "Auto catch", app->autocatch, autocatch_config_catch_callback);
+    autocatch_config_add_switch(app, "Auto spin", app->autospin, autocatch_config_spin_callback);
+    variable_item_list_add(app->config, "Lock Keyboard", 1, NULL, NULL);
+    variable_item_list_set_enter_callback(app->config, autocatch_config_enter_callback, app);
+    View* config_view = variable_item_list_get_view(app->config);
+    view_set_previous_callback(config_view, autocatch_config_previous_callback);
+    view_dispatcher_add_view(app->view_dispatcher, AutocatchViewConfig, config_view);
+
     app->gui = furi_record_open(RECORD_GUI);
-    gui_add_view_port(app->gui, app->view_port, GuiLayerFullscreen);
+    view_dispatcher_attach_to_gui(app->view_dispatcher, app->gui, ViewDispatcherTypeFullscreen);
 
     return app;
 }
 
 static void autocatch_free(AutocatchApp* app) {
-    gui_remove_view_port(app->gui, app->view_port);
-    view_port_free(app->view_port);
+    view_dispatcher_remove_view(app->view_dispatcher, AutocatchViewMain);
+    view_dispatcher_remove_view(app->view_dispatcher, AutocatchViewConfig);
+    view_free(app->main_view);
+    variable_item_list_free(app->config);
+
+    FuriEventLoop* event_loop = view_dispatcher_get_event_loop(app->view_dispatcher);
+    furi_event_loop_unsubscribe(event_loop, app->event_queue);
+    furi_event_loop_timer_free(app->press_timer);
+    furi_event_loop_timer_free(app->lock_timer);
+    view_dispatcher_free(app->view_dispatcher);
+
     furi_record_close(RECORD_GUI);
     furi_record_close(RECORD_NOTIFICATION);
     furi_mutex_free(app->mutex);
@@ -357,44 +587,10 @@ int32_t autocatch_app(void* p) {
             autocatch_random_fill);
         autocatch_bt_start(app);
     }
-    view_port_update(app->view_port);
 
-    AutocatchEvent event;
-    bool running = true;
-    while(running) {
-        bool redraw = furi_message_queue_get(
-                          app->event_queue, &event, AUTOCATCH_LOOP_TIMEOUT_MS) == FuriStatusOk;
-
-        furi_check(furi_mutex_acquire(app->mutex, FuriWaitForever) == FuriStatusOk);
-        if(redraw) {
-            switch(event.type) {
-            case AutocatchEventTypeInput:
-                running = autocatch_handle_input(app, &event.input);
-                break;
-            case AutocatchEventTypeBtStatus:
-                app->bt_status = event.bt_status;
-                if(event.bt_status != BtStatusConnected) {
-                    pgp_handshake_reset(&app->handshake);
-                    app->handshake_started = false;
-                    app->press_pending = false;
-                }
-                break;
-            case AutocatchEventTypeGatt:
-                autocatch_handle_gatt(app, &event.gatt);
-                break;
-            }
-        }
-        if(app->press_pending && (int32_t)(furi_get_tick() - app->press_at) >= 0) {
-            app->press_pending = false;
-            autocatch_press_button(app);
-            redraw = true;
-        }
-        furi_mutex_release(app->mutex);
-
-        if(redraw) {
-            view_port_update(app->view_port);
-        }
-    }
+    // Only show the screen once the secrets and Bluetooth are set up
+    view_dispatcher_switch_to_view(app->view_dispatcher, AutocatchViewMain);
+    view_dispatcher_run(app->view_dispatcher);
 
     if(app->bt) {
         autocatch_bt_stop(app);

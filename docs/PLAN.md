@@ -119,6 +119,8 @@ Goal: the phone pairs and the handshake reaches *Connected*.
 
 ### M3: Usability
 
+- Config menu (Left) for auto catch / auto spin, with a Sub-GHz style keypad lock
+  (done).
 - Save the auto catch / auto spin settings (Flipper Format in `apps_data`).
 - Several secret files with a picker (pgpemu supports multiple PGPs).
 - Optional vibration on catch, plus session statistics.

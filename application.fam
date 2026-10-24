@@ -11,6 +11,7 @@ App(
     fap_category="Bluetooth",
     fap_version="0.2",
     fap_icon="autocatch.png",
+    fap_icon_assets="images",
     fap_description="Pokemon GO Plus emulator that catches Pokemon and spins Pokestops for you",
     fap_author="neednotapply",
     fap_weburl="https://github.com/neednotapply/Flip-Autocatch",

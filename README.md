@@ -97,14 +97,26 @@ turn off.
 
 | Button | Action                               |
 |--------|--------------------------------------|
-| Left   | Toggle auto catch                    |
-| Right  | Toggle auto spin                     |
+| Left   | Open the config menu                 |
 | OK     | Press the PGP button now             |
 | Back   | Disconnect, restore Bluetooth, exit  |
 
 The screen shows the last thing the phone signalled (Pokemon nearby, caught, fled,
-bag full, and so on) and counters for this session. Like pgpemu, the button is
-pressed after a random 1.0-2.5 s delay with a random press length.
+bag full, and so on), counters for this session and, bottom right, what is
+automated (*Catch+Spin*, *Catch only*, *Spin only* or *Auto off*). Like pgpemu, the
+button is pressed after a random 1.0-2.5 s delay with a random press length.
+
+The config menu works like the one in Sub-GHz *Read*:
+
+| Item          | Use                                                          |
+|---------------|--------------------------------------------------------------|
+| Auto catch    | Left/Right: press the button when a Pokemon shows up (ON)    |
+| Auto spin     | Left/Right: press the button at Pokestops (ON)               |
+| Lock Keyboard | OK: lock the buttons, e.g. while the Flipper is in a pocket  |
+
+While the buttons are locked the app keeps catching and spinning, and the screen
+turns off after a second. Any button shows how to unlock: press Back three times
+within a second.
 
 ## Troubleshooting
 
@@ -123,6 +135,7 @@ pgp_cert.c        handshake crypto, AES-128 based (pure C)
 pgp_led.c         LED pattern parsing and button press patterns (pure C)
 pgp_secrets.c     loads the device secrets from the SD card
 aes.c             tiny-AES-c (ECB only)
+images/           icons for the keypad lock
 tests/            host tests for the pure C parts
 tools/            secrets file converter
 ```
