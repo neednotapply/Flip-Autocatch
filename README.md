@@ -10,9 +10,9 @@ key and blob) dumped from **your own** Pokemon GO Plus. Without them the phone w
 not accept the device.
 
 > **Status:** builds against the official firmware (1.5.1), Momentum and Unleashed, and the
-> protocol code is unit tested against pgpemu. **It has not been tested on
-> hardware yet.** See [docs/PLAN.md](docs/PLAN.md) for the bring-up checklist and
-> known risks.
+> protocol code is unit tested against pgpemu. **Confirmed working on hardware with
+> Momentum** - it pairs with Pokemon GO and presses the button automatically. Not yet
+> verified on Unleashed. See [docs/PLAN.md](docs/PLAN.md) for notes and known risks.
 >
 > Using accessory emulators may violate the Pokemon GO Terms of Service. Use at
 > your own risk.
