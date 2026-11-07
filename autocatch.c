@@ -17,7 +17,9 @@
 
 #define TAG "Autocatch"
 
-#define AUTOCATCH_KEYS_PATH APP_DATA_PATH(".pgp.keys")
+// Same fixed folder as the secrets file (PGP_DATA_DIR, from pgp_secrets.h) so
+// the bond keys do not depend on the .fap file name either.
+#define AUTOCATCH_KEYS_PATH PGP_DATA_DIR "/.pgp.keys"
 
 // pgpemu presses 1.0-2.5 s after the LED pattern starts
 #define AUTOCATCH_PRESS_DELAY_MIN_MS    1000
