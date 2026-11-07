@@ -105,7 +105,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           {
-            echo "Untested on hardware so far. Follow the bring-up checklist in docs/PLAN.md and send the logs."
+            if [[ "$TAG" == *-* ]]; then
+              echo "Beta build. Not fully tested on hardware yet - follow the bring-up checklist in docs/PLAN.md and send the logs."
+            else
+              echo "Loads your secrets from \`apps_data/autocatch/\` no matter what the \`.fap\` file is named, so there is no need to rename the download."
+            fi
             echo
             echo "Pick the file for the firmware and channel installed on your Flipper; the API version in the name has to match."
             echo
